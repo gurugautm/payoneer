@@ -74,6 +74,7 @@ steps:
       connection: 'guru-host'
       registry: 'guru-acr'
       register: true
+      docker-archive: '${TAR_DIRECTORY}/nginx-custom-${BUILD_BUILDID}.tar'
 
   # 5. Publish the saved image
   - task: PublishPipelineArtifact@1
