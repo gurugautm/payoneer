@@ -1,26 +1,28 @@
-# ---------- Stage 1: Builder ----------
-FROM python:3.10-slim AS builder
+# Use the official stable Debian base image
+FROM debian:bookworm-slim
 
+# Prevent interactive prompts during installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system dependencies, Python, and Pip
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up a working directory
 WORKDIR /app
 
-# Install build deps
-RUN apt-get update && apt-get install -y gcc build-essential && rm -rf /var/lib/apt/lists/*
+# Create a virtual environment to avoid PEP 668 externally managed errors
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-COPY requirements.txt .
-RUN pip install --user -r requirements.txt
+# Upgrade pip and install ecdsa safely
+RUN pip install --no-cache-dir ecdsa
 
+# Copy your application code
 COPY . .
 
-# ---------- Stage 2: Runtime ----------
-FROM python:3.10-slim
-
-WORKDIR /app
-
-# Copy libraries from builder stage
-COPY --from=builder /root/.local /root/.local
-COPY --from=builder /app /app
-
-ENV PATH=/root/.local/bin:$PATH
-
-CMD ["python", "main.py"]
-
+# Command to execute your code
+CMD ["python3", "main.py"]
