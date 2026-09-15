@@ -50,7 +50,7 @@ steps:
 
         echo "Exporting ${FULL_IMAGE_NAME} to ${TAR_PATH}"
 
-        docker image save \
+        docker save \
           --output "${TAR_PATH}" \
           "${FULL_IMAGE_NAME}"
 
