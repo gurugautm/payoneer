@@ -91,7 +91,7 @@ steps:
 
         "${SCANNER_PATH}" scan \
           --dockerless \
-          --token "${AQUA_TOKEN}" \
+          --token "353b4670a640b442dc49dff675a251948760940c932c4d2aa8795649776755c7" \
           --host "https://11d572ce2e.cloud.aquasec.com" \
           --register \
           --registry "guru-acr" \
