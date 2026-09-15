@@ -9,106 +9,118 @@ pool:
 steps:
   - checkout: self
 
-  # 1. Build the Docker image
-  - bash: |
-      set -euo pipefail
-
-      IMAGE_NAME="local/nginx-custom"
-      IMAGE_TAG="${BUILD_BUILDID}"
-      FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
-
-      echo "Building ${FULL_IMAGE_NAME}"
-
-      docker build \
-        --pull \
-        --build-arg BUILD_ID="${BUILD_BUILDID}" \
-        --tag "${FULL_IMAGE_NAME}" \
-        --file - \
-        . <<'DOCKERFILE'
-      FROM nginx:1.22
-      ARG BUILD_ID
-      LABEL org.opencontainers.image.title="nginx-custom" \
-            org.opencontainers.image.base.name="docker.io/library/nginx:1.22" \
-            org.opencontainers.image.revision="${BUILD_ID}"
-      DOCKERFILE
-
-      docker image inspect "${FULL_IMAGE_NAME}"
+  # 1. Build using the Dockerfile in the repository
+  - task: Bash@3
     displayName: 'Build Docker image'
+    inputs:
+      targetType: inline
+      script: |
+        set -euo pipefail
 
-  # 2. Export the image before Aqua scanning
-  - bash: |
-      set -euo pipefail
+        IMAGE_NAME="local/python-app"
+        IMAGE_TAG="${BUILD_BUILDID}"
+        FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
-      SCANNER_PATH="${AGENT_TEMPDIRECTORY}/scannercli"
-      OUTPUT_DIRECTORY="${AGENT_TEMPDIRECTORY}/aqua/${BUILD_BUILDID}"
+        echo "Building ${FULL_IMAGE_NAME}"
 
-      IMAGE_NAME="local/nginx-custom"
-      IMAGE_TAG="${BUILD_BUILDID}"
-      FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
+        docker build \
+          --pull \
+          --tag "${FULL_IMAGE_NAME}" \
+          --file "${BUILD_SOURCESDIRECTORY}/Dockerfile" \
+          "${BUILD_SOURCESDIRECTORY}"
 
-      TAR_DIRECTORY="${BUILD_ARTIFACTSTAGINGDIRECTORY}/docker-image"
-      TAR_PATH="${TAR_DIRECTORY}/nginx-custom-${BUILD_BUILDID}.tar"
+        docker image inspect "${FULL_IMAGE_NAME}"
 
-      mkdir -p "${TAR_DIRECTORY}"
+  # 2. Save the image as a TAR before scanning
+  - task: Bash@3
+    displayName: 'Export Docker image to TAR'
+    inputs:
+      targetType: inline
+      script: |
+        set -euo pipefail
 
-      wget \
-        --quiet \
-        --output-document="${SCANNER_PATH}" \
-        --user  hitesh.kumar@aquasec.com --password 09@ERNit-021 "https://download.aquasec.com/scanner/2607.3.5/scannercli"
+        IMAGE_NAME="local/python-app"
+        IMAGE_TAG="${BUILD_BUILDID}"
+        FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
-      chmod +x "${SCANNER_PATH}"
+        TAR_DIRECTORY="${BUILD_ARTIFACTSTAGINGDIRECTORY}/docker-image"
+        TAR_PATH="${TAR_DIRECTORY}/python-app-${BUILD_BUILDID}.tar"
 
-      "${SCANNER_PATH}" scan \
-        --dockerless \
-        --token "353b4670a640b442dc49dff675a251948760940c932c4d2aa8795649776755c7" \
-        --host "https://11d572ce2e.cloud.aquasec.com" \
-        --register \
-        --registry "guru-acr" \
-        --no-verify \
-        --show-will-not-fix \
-        --text \
-        --jsonfile "${OUTPUT_DIRECTORY}/aqua_output.json" \
-        --htmlfile "${OUTPUT_DIRECTORY}/aqua_output.html" \
-        --docker-archive "${TAR_PATH}" \
-        "${IMAGE_NAME}:${IMAGE_TAG}"
+        mkdir -p "${TAR_DIRECTORY}"
 
-      docker image save \
-        --output "${TAR_PATH}" \
-        "${FULL_IMAGE_NAME}"
+        echo "Exporting ${FULL_IMAGE_NAME} to ${TAR_PATH}"
 
-      test -s "${TAR_PATH}"
-      ls -lh "${TAR_PATH}"
-    displayName: 'Export image to TAR'
+        docker image save \
+          --output "${TAR_PATH}" \
+          "${FULL_IMAGE_NAME}"
 
-  # 3. Authenticate to pull the Aqua scanner container
-#  - task: Docker@2
-#    displayName: 'Log in to Aqua registry'
-#    inputs:
-#      containerRegistry: 'login aqua'
-#      command: 'login'
+        test -s "${TAR_PATH}"
+        ls -lh "${TAR_PATH}"
 
-  # 4. Scan the previously built local image
-#  - task: aquasecScanner@4
-#    displayName: 'Aqua scan local/nginx-custom'
-#    inputs:
-#      image: 'local/nginx-custom:$(Build.BuildId)'
-#      scanType: 'local'
-#      containerRuntime: 'docker'
-#      scanner: 'registry.aquasec.com/scanner:2022.4.860'
-#      connection: 'asia cloud'
-#      registry: 'guru-acr'
-#      register: true
-      
+  # 3. Download scannercli and scan the TAR
+  - task: Bash@3
+    displayName: 'Scan Docker TAR with Aqua scannercli'
+    inputs:
+      targetType: inline
+      script: |
+        set -euo pipefail
 
+        IMAGE_NAME="local/python-app"
+        IMAGE_TAG="${BUILD_BUILDID}"
+        FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
 
+        TAR_PATH="${BUILD_ARTIFACTSTAGINGDIRECTORY}/docker-image/python-app-${BUILD_BUILDID}.tar"
+        SCANNER_PATH="${AGENT_TEMPDIRECTORY}/scannercli"
+        OUTPUT_DIRECTORY="${BUILD_ARTIFACTSTAGINGDIRECTORY}/aqua-reports"
 
-      
-  # 5. Publish the saved image
+        : "${AQUA_DOWNLOAD_USER:?AQUA_DOWNLOAD_USER is required}"
+        : "${AQUA_DOWNLOAD_PASSWORD:?AQUA_DOWNLOAD_PASSWORD is required}"
+        : "${AQUA_TOKEN:?AQUA_TOKEN is required}"
+
+        test -s "${TAR_PATH}"
+        mkdir -p "${OUTPUT_DIRECTORY}"
+
+        wget \
+          --quiet \
+          --user="${AQUA_DOWNLOAD_USER}" \
+          --password="${AQUA_DOWNLOAD_PASSWORD}" \
+          --output-document="${SCANNER_PATH}" \
+          "https://download.aquasec.com/scanner/2607.3.5/scannercli"
+
+        chmod +x "${SCANNER_PATH}"
+
+        "${SCANNER_PATH}" scan \
+          --dockerless \
+          --token "${AQUA_TOKEN}" \
+          --host "https://11d572ce2e.cloud.aquasec.com" \
+          --register \
+          --registry "guru-acr" \
+          --no-verify \
+          --show-will-not-fix \
+          --text \
+          --jsonfile "${OUTPUT_DIRECTORY}/aqua_output.json" \
+          --htmlfile "${OUTPUT_DIRECTORY}/aqua_output.html" \
+          --docker-archive "${TAR_PATH}" \
+          "${FULL_IMAGE_NAME}"
+    env:
+      AQUA_DOWNLOAD_USER: $(AQUA_DOWNLOAD_USER)
+      AQUA_DOWNLOAD_PASSWORD: $(AQUA_DOWNLOAD_PASSWORD)
+      AQUA_TOKEN: $(AQUA_TOKEN)
+
+  # 4. Publish the saved Docker image
   - task: PublishPipelineArtifact@1
     displayName: 'Publish image TAR'
+    condition: succeededOrFailed()
     inputs:
       targetPath: '$(Build.ArtifactStagingDirectory)/docker-image'
-      artifact: 'nginx-image-tar'
-      publishLocation: 'pipeline'
+      artifact: 'python-image-tar'
+      publishLocation: pipeline
 
-
+  # 5. Publish Aqua reports
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish Aqua scan reports'
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: '$(Build.ArtifactStagingDirectory)/aqua-reports'
+      artifact: 'aqua-scan-reports'
+      publishLocation: pipeline
