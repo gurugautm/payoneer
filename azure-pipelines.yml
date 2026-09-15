@@ -75,6 +75,8 @@ steps:
       registry: 'guru-acr'
       register: true
       dockerarchivefile: '${TAR_DIRECTORY}/nginx-custom-${BUILD_BUILDID}.tar'
+      customFlags: '--docker-archive'
+
 
   # 5. Publish the saved image
   - task: PublishPipelineArtifact@1
@@ -83,4 +85,5 @@ steps:
       targetPath: '$(Build.ArtifactStagingDirectory)/docker-image'
       artifact: 'nginx-image-tar'
       publishLocation: 'pipeline'
+
 
