@@ -39,6 +39,9 @@ steps:
   - bash: |
       set -euo pipefail
 
+      SCANNER_PATH="${AGENT_TEMPDIRECTORY}/scannercli"
+      OUTPUT_DIRECTORY="${AGENT_TEMPDIRECTORY}/aqua/${BUILD_BUILDID}"
+
       IMAGE_NAME="local/nginx-custom"
       IMAGE_TAG="${BUILD_BUILDID}"
       FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
