@@ -1,52 +1,73 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: ubuntu-latest
+
 steps:
   - checkout: self
 
-  # 1. Build Docker image
+  # 1. Build the Docker image
   - bash: |
       set -euo pipefail
 
+      IMAGE_NAME="local/nginx-custom"
+      IMAGE_TAG="${BUILD_BUILDID}"
+      FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
+
+      echo "Building ${FULL_IMAGE_NAME}"
+
       docker build \
         --pull \
-        --build-arg BUILD_ID="$(Build.BuildId)" \
-        --tag "$(imageRepository):$(imageTag)" \
+        --build-arg BUILD_ID="${BUILD_BUILDID}" \
+        --tag "${FULL_IMAGE_NAME}" \
         --file - \
         . <<'DOCKERFILE'
       FROM nginx:1.22
       ARG BUILD_ID
       LABEL org.opencontainers.image.title="nginx-custom" \
             org.opencontainers.image.base.name="docker.io/library/nginx:1.22" \
-            org.opencontainers.image.revision="$BUILD_ID"
+            org.opencontainers.image.revision="${BUILD_ID}"
       DOCKERFILE
 
-      docker image inspect "$(imageRepository):$(imageTag)"
+      docker image inspect "${FULL_IMAGE_NAME}"
     displayName: 'Build Docker image'
 
-  # 2. Export image to TAR
+  # 2. Export the image before Aqua scanning
   - bash: |
       set -euo pipefail
 
-      mkdir -p "$(imageTarDirectory)"
+      IMAGE_NAME="local/nginx-custom"
+      IMAGE_TAG="${BUILD_BUILDID}"
+      FULL_IMAGE_NAME="${IMAGE_NAME}:${IMAGE_TAG}"
+
+      TAR_DIRECTORY="${BUILD_ARTIFACTSTAGINGDIRECTORY}/docker-image"
+      TAR_PATH="${TAR_DIRECTORY}/nginx-custom-${BUILD_BUILDID}.tar"
+
+      mkdir -p "${TAR_DIRECTORY}"
 
       docker image save \
-        --output "$(imageTarPath)" \
-        "$(imageRepository):$(imageTag)"
+        --output "${TAR_PATH}" \
+        "${FULL_IMAGE_NAME}"
 
-      test -s "$(imageTarPath)"
-      ls -lh "$(imageTarPath)"
+      test -s "${TAR_PATH}"
+      ls -lh "${TAR_PATH}"
     displayName: 'Export image to TAR'
 
-  # 3. Log in so the Aqua scanner container can be pulled
+  # 3. Authenticate to pull the Aqua scanner container
   - task: Docker@2
     displayName: 'Log in to Aqua registry'
     inputs:
       containerRegistry: 'login aqua'
       command: 'login'
 
-  # 4. Scan the already-built local Docker image
+  # 4. Scan the previously built local image
   - task: aquasecScanner@4
-    displayName: 'Aqua scan local Docker image'
+    displayName: 'Aqua scan local/nginx-custom'
     inputs:
-      image: '$(imageRepository):$(imageTag)'
+      image: 'local/nginx-custom:$(Build.BuildId)'
       scanType: 'local'
       containerRuntime: 'docker'
       scanner: 'registry.aquasec.com/scanner:2022.4.860'
@@ -54,10 +75,10 @@ steps:
       registry: 'guru-acr'
       register: true
 
-  # 5. Publish TAR after a successful scan
+  # 5. Publish the saved image
   - task: PublishPipelineArtifact@1
     displayName: 'Publish image TAR'
     inputs:
-      targetPath: '$(imageTarDirectory)'
+      targetPath: '$(Build.ArtifactStagingDirectory)/docker-image'
       artifact: 'nginx-image-tar'
       publishLocation: 'pipeline'
