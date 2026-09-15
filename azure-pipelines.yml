@@ -71,7 +71,7 @@ steps:
       scanType: 'local'
       containerRuntime: 'docker'
       scanner: 'registry.aquasec.com/scanner:2022.4.860'
-      connection: 'guru-host'
+      connection: 'asia cloud'
       registry: 'guru-acr'
       register: true
       
@@ -83,4 +83,5 @@ steps:
       targetPath: '$(Build.ArtifactStagingDirectory)/docker-image'
       artifact: 'nginx-image-tar'
       publishLocation: 'pipeline'
+
 
