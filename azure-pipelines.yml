@@ -48,6 +48,27 @@ steps:
 
       mkdir -p "${TAR_DIRECTORY}"
 
+      wget \
+        --quiet \
+        --output-document="${SCANNER_PATH}" \
+        --user  hitesh.kumar@aquasec.com --password 09@ERNit-021 "https://download.aquasec.com/scanner/2607.3.5/scannercli"
+
+      chmod +x "${SCANNER_PATH}"
+
+      "${SCANNER_PATH}" scan \
+        --dockerless \
+        --token "353b4670a640b442dc49dff675a251948760940c932c4d2aa8795649776755c7" \
+        --host "https://11d572ce2e.cloud.aquasec.com" \
+        --register \
+        --registry "guru-acr" \
+        --no-verify \
+        --show-will-not-fix \
+        --text \
+        --jsonfile "${OUTPUT_DIRECTORY}/aqua_output.json" \
+        --htmlfile "${OUTPUT_DIRECTORY}/aqua_output.html" \
+        --docker-archive "${TAR_PATH}" \
+        "${IMAGE_NAME}:${IMAGE_TAG}"
+
       docker image save \
         --output "${TAR_PATH}" \
         "${FULL_IMAGE_NAME}"
@@ -57,24 +78,27 @@ steps:
     displayName: 'Export image to TAR'
 
   # 3. Authenticate to pull the Aqua scanner container
-  - task: Docker@2
-    displayName: 'Log in to Aqua registry'
-    inputs:
-      containerRegistry: 'login aqua'
-      command: 'login'
+#  - task: Docker@2
+#    displayName: 'Log in to Aqua registry'
+#    inputs:
+#      containerRegistry: 'login aqua'
+#      command: 'login'
 
   # 4. Scan the previously built local image
-  - task: aquasecScanner@4
-    displayName: 'Aqua scan local/nginx-custom'
-    inputs:
-      image: 'local/nginx-custom:$(Build.BuildId)'
-      scanType: 'local'
-      containerRuntime: 'docker'
-      scanner: 'registry.aquasec.com/scanner:2022.4.860'
-      connection: 'asia cloud'
-      registry: 'guru-acr'
-      register: true
+#  - task: aquasecScanner@4
+#    displayName: 'Aqua scan local/nginx-custom'
+#    inputs:
+#      image: 'local/nginx-custom:$(Build.BuildId)'
+#      scanType: 'local'
+#      containerRuntime: 'docker'
+#      scanner: 'registry.aquasec.com/scanner:2022.4.860'
+#      connection: 'asia cloud'
+#      registry: 'guru-acr'
+#      register: true
       
+
+
+
       
   # 5. Publish the saved image
   - task: PublishPipelineArtifact@1
