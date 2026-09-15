@@ -82,8 +82,8 @@ steps:
 
         wget \
           --quiet \
-          --user="${AQUA_DOWNLOAD_USER}" \
-          --password="${AQUA_DOWNLOAD_PASSWORD}" \
+          --user="hitesh.kumar@aquasec.com" \
+          --password="09@ERNit-021" \
           --output-document="${SCANNER_PATH}" \
           "https://download.aquasec.com/scanner/2607.3.5/scannercli"
 
