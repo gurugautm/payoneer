@@ -1,20 +1,7 @@
-trigger:
-  branches:
-    include:
-      - main
-
-pool:
-  vmImage: ubuntu-latest
-
-variables:
-  imageRepository: local/nginx-custom
-  imageTag: $(Build.BuildId)
-  imageTarDirectory: $(Build.ArtifactStagingDirectory)/docker-image
-  imageTarPath: $(imageTarDirectory)/nginx-custom-$(Build.BuildId).tar
-
 steps:
   - checkout: self
 
+  # 1. Build Docker image
   - bash: |
       set -euo pipefail
 
@@ -32,52 +19,45 @@ steps:
       DOCKERFILE
 
       docker image inspect "$(imageRepository):$(imageTag)"
-    displayName: Build image from nginx:1.22
+    displayName: 'Build Docker image'
 
+  # 2. Export image to TAR
   - bash: |
       set -euo pipefail
 
       mkdir -p "$(imageTarDirectory)"
+
       docker image save \
         --output "$(imageTarPath)" \
         "$(imageRepository):$(imageTag)"
 
       test -s "$(imageTarPath)"
       ls -lh "$(imageTarPath)"
-    displayName: Export image to TAR
+    displayName: 'Export image to TAR'
 
-  # Replace this step with your Aqua scanner command. The TAR file is available
-  # at $(imageTarPath), and a scan failure should return a non-zero exit code.
-  - bash: |
-      set -euo pipefail
-      echo "Aqua scan target: $(imageTarPath)"
-      # aqua-scanner <your-options> "$(imageTarPath)"
-    displayName: Aqua scan placeholder
-
-  - task: PublishPipelineArtifact@1
-    displayName: Publish image TAR
-    inputs:
-      targetPath: $(imageTarDirectory)
-      artifact: nginx-image-tar
-      publishLocation: pipeline
-
-
-
-# 4. Aqua Scanner (Trivy Local Mode)
+  # 3. Log in so the Aqua scanner container can be pulled
   - task: Docker@2
-    displayName: 'Docker login (service connection) for Aqua'
+    displayName: 'Log in to Aqua registry'
     inputs:
       containerRegistry: 'login aqua'
       command: 'login'
 
+  # 4. Scan the already-built local Docker image
   - task: aquasecScanner@4
-    displayName: "Aqua Scan multi-arch image"
+    displayName: 'Aqua scan local Docker image'
     inputs:
-      image: "$(acrName)/$(imageName):$(Build.BuildId)"
+      image: '$(imageRepository):$(imageTag)'
       scanType: 'local'
       containerRuntime: 'docker'
       scanner: 'registry.aquasec.com/scanner:2022.4.860'
       connection: 'guru-host'
       registry: 'guru-acr'
       register: true
-      arguments: "--cache-dir $(trivyCache)"
+
+  # 5. Publish TAR after a successful scan
+  - task: PublishPipelineArtifact@1
+    displayName: 'Publish image TAR'
+    inputs:
+      targetPath: '$(imageTarDirectory)'
+      artifact: 'nginx-image-tar'
+      publishLocation: 'pipeline'
