@@ -91,10 +91,10 @@ steps:
 
         "${SCANNER_PATH}" scan \
           --dockerless \
-          --token "9d6abc91e7b5033e0afb5ad44ab5b8625e36d7814993d46711e6195b6d8631bf" \
-          --host "https://896ba209d8.cloud.aquasec.com" \
+          --token "353b4670a640b442dc49dff675a251948760940c932c4d2aa8795649776755c7" \
+          --host "https://11d572ce2e.cloud.aquasec.com" \
           --register \
-          --registry "PayoneerDockerHub" \
+          --registry "kolin-hap-VKS" \
           --no-verify \
           --show-will-not-fix \
           --text \
