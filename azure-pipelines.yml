@@ -98,7 +98,7 @@ steps:
           --no-verify \
           --show-will-not-fix \
           --text \
-          --policies "kolin-hap-VKS" \
+          --policies "guru-test" \
           --jsonfile "${OUTPUT_DIRECTORY}/aqua_output.json" \
           --htmlfile "${OUTPUT_DIRECTORY}/aqua_output.html" \
           --docker-archive "${TAR_PATH}" \
