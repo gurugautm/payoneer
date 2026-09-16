@@ -94,11 +94,11 @@ steps:
           --token "353b4670a640b442dc49dff675a251948760940c932c4d2aa8795649776755c7" \
           --host "https://11d572ce2e.cloud.aquasec.com" \
           --register \
-          --registry "kolin-hap-VKS" \
+          --registry "guru-acr" \
           --no-verify \
           --show-will-not-fix \
           --text \
-          --policies guru-acr \
+          --policies "kolin-hap-VKS" \
           --jsonfile "${OUTPUT_DIRECTORY}/aqua_output.json" \
           --htmlfile "${OUTPUT_DIRECTORY}/aqua_output.html" \
           --docker-archive "${TAR_PATH}" \
